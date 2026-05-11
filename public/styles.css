@@ -34,12 +34,30 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  font-size: 14px;
+.slot-header {
+  display: grid;
+  grid-template-columns: 1fr 40px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.title-input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fff;
   color: #334155;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+}
+
+.title-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .textarea-wrap {
@@ -53,7 +71,7 @@ textarea {
   resize: vertical;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 10px 40px 10px 10px;
+  padding: 10px;
   font: inherit;
   font-size: 14px;
   line-height: 1.5;
@@ -118,25 +136,20 @@ button:disabled {
   opacity: 0.5;
 }
 
-.delete-x {
-  position: absolute;
-  top: 6px;
-  right: 6px;
+.delete-box {
   display: grid;
-  width: 28px;
-  min-height: 28px;
+  min-height: 40px;
   place-items: center;
-  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
   background: #f1f5f9;
   color: #64748b;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1;
-  z-index: 1;
-  border: 1px solid #e2e8f0;
 }
 
-.delete-x:active {
+.delete-box:active {
   background: #fee2e2;
   color: #dc2626;
   border-color: #fca5a5;
@@ -170,6 +183,20 @@ button:disabled {
   margin: 6px 0 0;
   color: #64748b;
   font-size: 12px;
+}
+
+.add-slot {
+  display: grid;
+  width: 62px;
+  min-height: 62px;
+  place-items: center;
+  margin: 18px auto 0;
+  border-radius: 999px;
+  background: #3b82f6;
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 1;
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.25);
 }
 
 .sr-only {

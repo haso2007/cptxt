@@ -1,39 +1,74 @@
-const slots = ["1", "2"];
 const state = new Map();
 const saveTimers = new Map();
-
-for (const slot of slots) {
-  state.set(slot, {
-    hidden: false,
-    text: "",
-    hasContent: false,
-    updatedAt: null,
-    saving: false,
-    isSecured: false, // Tracks if it's explicitly hidden on the server
-  });
-}
+const slotsElement = document.getElementById("slots");
+const template = document.getElementById("slot-template");
+const addButton = document.getElementById("add-slot");
 
 document.addEventListener("DOMContentLoaded", () => {
-  bindEvents();
+  addButton.addEventListener("click", createSlot);
   loadSlots();
 });
 
-function bindEvents() {
-  document.querySelectorAll("textarea").forEach((textarea) => {
-    textarea.addEventListener("input", () => {
-      const slot = textarea.id.replace("slot-", "");
-      const slotState = state.get(slot);
-      slotState.text = textarea.value;
-      slotState.hidden = false;
-      document.querySelector(`.slot[data-slot="${slot}"]`).classList.remove("is-hidden");
-      setToggleUi(slot, false);
-      scheduleSave(slot);
-    });
+async function loadSlots() {
+  try {
+    const data = await requestJson("/api/slots");
+    slotsElement.textContent = "";
+    state.clear();
+
+    for (const item of data.slots || []) {
+      addSlotToPage(item);
+    }
+  } catch (error) {
+    slotsElement.textContent = error.message || "加载失败";
+  }
+}
+
+function addSlotToPage(item) {
+  const slot = String(item.id);
+  const slotState = {
+    title: item.title || "",
+    hidden: Boolean(item.isHidden),
+    text: item.text || "",
+    hasContent: Boolean(item.hasContent),
+    updatedAt: item.updatedAt || null,
+    saving: false,
+    isSecured: Boolean(item.isHidden),
+  };
+
+  state.set(slot, slotState);
+
+  const node = template.content.firstElementChild.cloneNode(true);
+  node.dataset.slot = slot;
+  node.querySelector(".title-input").value = slotState.title;
+  node.querySelector("textarea").id = `slot-${slot}`;
+  node.querySelector(".delete-box").dataset.slot = slot;
+  node.querySelector("button[data-action='copy']").dataset.slot = slot;
+  node.querySelector("button[data-action='toggle']").dataset.slot = slot;
+
+  bindSlotEvents(node, slot);
+  slotsElement.appendChild(node);
+  updateSlotUi(slot);
+}
+
+function bindSlotEvents(node, slot) {
+  node.querySelector(".title-input").addEventListener("input", (event) => {
+    const slotState = state.get(slot);
+    slotState.title = event.target.value;
+    scheduleSave(slot);
   });
 
-  document.querySelectorAll("button[data-action]").forEach((button) => {
+  node.querySelector("textarea").addEventListener("input", (event) => {
+    const slotState = state.get(slot);
+    slotState.text = event.target.value;
+    slotState.hidden = false;
+    slotState.isSecured = false;
+    node.classList.remove("is-hidden");
+    setToggleUi(slot, false);
+    scheduleSave(slot);
+  });
+
+  node.querySelectorAll("button[data-action]").forEach((button) => {
     button.addEventListener("click", async () => {
-      const slot = button.dataset.slot;
       const action = button.dataset.action;
 
       if (action === "delete") {
@@ -51,31 +86,14 @@ function bindEvents() {
   });
 }
 
-async function loadSlots() {
-  try {
-    const data = await requestJson("/api/slots");
-
-    for (const item of data.slots || []) {
-      const slotState = state.get(String(item.id));
-      if (!slotState) continue;
-
-      slotState.hasContent = Boolean(item.hasContent);
-      slotState.updatedAt = item.updatedAt || null;
-      slotState.hidden = Boolean(item.isHidden);
-      slotState.isSecured = Boolean(item.isHidden);
-      slotState.text = item.text || "";
-      updateSlotUi(String(item.id));
-    }
-  } catch (error) {
-    setAllStatus(error.message || "加载失败");
-  }
-}
-
 function updateSlotUi(slot) {
   const slotState = state.get(slot);
-  const card = document.querySelector(`.slot[data-slot="${slot}"]`);
-  const textarea = document.getElementById(`slot-${slot}`);
+  const card = getSlotElement(slot);
+  const textarea = card.querySelector("textarea");
+  const titleInput = card.querySelector(".title-input");
+
   card.classList.toggle("is-hidden", slotState.hidden);
+  titleInput.value = slotState.title;
   textarea.readOnly = slotState.hidden;
   textarea.value = slotState.hidden ? maskText() : slotState.text;
   textarea.placeholder = slotState.hidden ? "已隐藏，点击眼睛显示" : "输入或点击显示";
@@ -88,10 +106,10 @@ function maskText() {
 
 function setToggleUi(slot, hidden) {
   const label = hidden ? "显示" : "隐藏";
-  const toggleButton = document.querySelector(`button[data-action="toggle"][data-slot="${slot}"]`);
+  const toggleButton = getSlotElement(slot).querySelector("button[data-action='toggle']");
   const labelElement = toggleButton.querySelector(".sr-only");
 
-  toggleButton.setAttribute("aria-label", `${label}文本框 ${slot}`);
+  toggleButton.setAttribute("aria-label", `${label}文本框`);
   labelElement.textContent = label;
 }
 
@@ -109,9 +127,9 @@ function scheduleSave(slot) {
 
 async function saveSlot(slot) {
   const slotState = state.get(slot);
-  const textarea = document.getElementById(`slot-${slot}`);
-  // If it's visibly hidden, send the cached text. Otherwise send what's in textarea.
-  const text = slotState.hidden ? slotState.text : textarea.value;
+  const card = getSlotElement(slot);
+  const text = slotState.hidden ? slotState.text : card.querySelector("textarea").value;
+  const title = card.querySelector(".title-input").value;
 
   if (text.length > 50000) {
     setStatus(slot, "文本太长，最多 50000 字符");
@@ -127,10 +145,7 @@ async function saveSlot(slot) {
       data = await requestJson("/api/slots", {
         method: "POST",
         headers: authHeaders(),
-        // We use slotState.isSecured for whether it should be hidden on server.
-        // Wait, if we use isSecured, how do we toggle it?
-        // toggleSlot sets slotState.isSecured = true.
-        body: JSON.stringify({ slot, text, isHidden: slotState.isSecured }),
+        body: JSON.stringify({ slot, title, text, isHidden: slotState.isSecured }),
       });
     } catch (error) {
       if (error.status === 401) {
@@ -138,13 +153,14 @@ async function saveSlot(slot) {
         data = await requestJson("/api/slots", {
           method: "POST",
           headers: authHeaders(),
-          body: JSON.stringify({ slot, text, isHidden: slotState.isSecured }),
+          body: JSON.stringify({ slot, title, text, isHidden: slotState.isSecured }),
         });
       } else {
         throw error;
       }
     }
 
+    slotState.title = title;
     slotState.text = text;
     slotState.hasContent = text.length > 0;
     slotState.updatedAt = data.updatedAt || null;
@@ -161,7 +177,7 @@ async function saveSlot(slot) {
 }
 
 async function deleteSlot(slot) {
-  if (!confirm(`确定删除文本框 ${slot} 的内容吗？`)) return;
+  if (!confirm("确定删除这个文本框吗？")) return;
 
   clearTimeout(saveTimers.get(slot));
 
@@ -185,14 +201,9 @@ async function deleteSlot(slot) {
       }
     }
 
-    const slotState = state.get(slot);
-    slotState.text = "";
-    slotState.hidden = false;
-    slotState.isSecured = false;
-    slotState.hasContent = false;
-    slotState.updatedAt = null;
-    updateSlotUi(slot);
-    setStatus(slot, "已删除");
+    getSlotElement(slot).remove();
+    state.delete(slot);
+    saveTimers.delete(slot);
   } catch (error) {
     setStatus(slot, error.message || "删除失败");
   }
@@ -200,7 +211,7 @@ async function deleteSlot(slot) {
 
 async function copySlot(slot) {
   const slotState = state.get(slot);
-  const textarea = document.getElementById(`slot-${slot}`);
+  const textarea = getSlotElement(slot).querySelector("textarea");
 
   if (slotState.hidden) {
     setStatus(slot, "请先点击显示");
@@ -225,7 +236,7 @@ async function copySlot(slot) {
 
 async function toggleSlot(slot) {
   const slotState = state.get(slot);
-  const textarea = document.getElementById(`slot-${slot}`);
+  const textarea = getSlotElement(slot).querySelector("textarea");
 
   if (slotState.hidden) {
     await revealSlot(slot);
@@ -234,8 +245,8 @@ async function toggleSlot(slot) {
 
   clearTimeout(saveTimers.get(slot));
   slotState.text = textarea.value;
-  slotState.hidden = true; // Visually hide
-  slotState.isSecured = true; // Mark as secured on server
+  slotState.hidden = true;
+  slotState.isSecured = true;
 
   if (slotState.text) {
     const saved = await saveSlot(slot);
@@ -254,7 +265,6 @@ async function revealSlot(slot) {
   try {
     const slotState = state.get(slot);
 
-    // Always require password when revealing locked content
     if (slotState.isSecured) {
       await ensureUnlocked(slot);
     }
@@ -265,6 +275,7 @@ async function revealSlot(slot) {
       body: JSON.stringify({ action: "reveal", slot }),
     });
 
+    slotState.title = data.title || slotState.title;
     slotState.text = data.text || "";
     slotState.hasContent = slotState.text.length > 0;
     slotState.updatedAt = data.updatedAt || null;
@@ -272,9 +283,27 @@ async function revealSlot(slot) {
     slotState.isSecured = Boolean(data.isHidden);
     updateSlotUi(slot);
     setStatus(slot, slotState.hasContent ? "已显示" : "没有内容");
-    document.getElementById(`slot-${slot}`).focus();
+    getSlotElement(slot).querySelector("textarea").focus();
   } catch (error) {
     setStatus(slot, error.message || "显示失败");
+  }
+}
+
+async function createSlot() {
+  addButton.disabled = true;
+
+  try {
+    const data = await requestJson("/api/slots", {
+      method: "POST",
+      body: JSON.stringify({ action: "create" }),
+    });
+
+    addSlotToPage(data);
+    getSlotElement(data.id).querySelector(".title-input").focus();
+  } catch (error) {
+    alert(error.message || "新增失败");
+  } finally {
+    addButton.disabled = false;
   }
 }
 
@@ -330,12 +359,10 @@ async function requestJson(url, options = {}) {
   return data;
 }
 
-function setStatus(slot, message) {
-  document.getElementById(`status-${slot}`).textContent = message;
+function getSlotElement(slot) {
+  return slotsElement.querySelector(`.slot[data-slot="${slot}"]`);
 }
 
-function setAllStatus(message) {
-  for (const slot of slots) {
-    setStatus(slot, message);
-  }
+function setStatus(slot, message) {
+  getSlotElement(slot).querySelector(".status").textContent = message;
 }

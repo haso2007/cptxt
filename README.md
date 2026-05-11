@@ -7,8 +7,10 @@
 - Workers 项目，不是 Pages 项目。
 - 静态页面放在 `public/`。
 - Worker 入口是 `src/index.js`。
-- 前端访问 `/api/slots` 读写文本。
-- 文本存储在 Cloudflare KV。
+- 前端访问 `/api/slots` 读写文本框。
+- 文本框标题、正文、隐藏状态和文本框列表存储在 Cloudflare KV。
+- 默认有两个文本框，可通过底部大号 `+` 新增文本框。
+- 每个文本框标题可编辑，标题右侧 `×` 会删除整个文本框。
 - 密码存储在 Cloudflare Worker 环境变量中。
 - GitHub 更新后可以由 Cloudflare 自动执行 `wrangler deploy` 部署。
 
@@ -220,15 +222,15 @@ npx wrangler dev
 ## 页面测试步骤
 
 1. 打开 Worker 地址。
-2. 页面应该只显示两个文本框，没有顶部标题说明。
-3. 每个文本框右上角都有 `×`。
-4. 每个文本框下面有“复制”和眼睛图标。
-5. 输入文本，按提示输入密码解锁。
-6. 等待状态显示“已保存”。
-7. 点击眼睛图标隐藏，文本框内应显示类似密码的圆点。
-8. 再点眼睛图标显示，输入密码后恢复文本。
-9. 点击复制，确认剪贴板内容正确。
-10. 点击 `×`，确认删除后刷新仍为空。
+2. 页面默认显示两个文本框。
+3. 每个文本框顶部都有一个可输入的标题，默认可以为空。
+4. 标题右侧的 `×` 用于删除整个文本框。
+5. 每个文本框下面有“复制”和眼睛图标。
+6. 页面最下面有一个带圈的大 `+`，点击后新增文本框。
+7. 输入标题或文本，等待状态显示“已保存”。
+8. 点击眼睛图标隐藏，文本框内应显示类似密码的圆点。
+9. 再点眼睛图标显示，输入密码后恢复文本。
+10. 点击复制，确认剪贴板内容正确。
 
 ## API 测试
 
@@ -240,9 +242,9 @@ curl https://你的-worker域名/api/slots
 
 预期：
 
-- 返回 2 个 slot。
-- 只返回 `hasContent` 和 `updatedAt`。
-- 不返回真实 `text`。
+- 默认返回 2 个 slot；新增或删除后返回当前文本框列表。
+- 每个 slot 返回 `id`、`title`、`hasContent`、`isHidden` 和 `updatedAt`。
+- 未隐藏时返回真实 `text`，隐藏时不返回正文。
 
 ### 解锁
 
@@ -258,13 +260,13 @@ curl -X POST https://你的-worker域名/api/slots \
 {"token":"..."}
 ```
 
-### 保存文本
+### 保存标题和文本
 
 ```bash
 curl -X POST https://你的-worker域名/api/slots \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
-  -d '{"slot":"1","text":"hello"}'
+  -d '{"slot":"1","title":"临时内容","text":"hello"}'
 ```
 
 ### 显示文本
@@ -276,7 +278,15 @@ curl -X POST https://你的-worker域名/api/slots \
   -d '{"action":"reveal","slot":"1"}'
 ```
 
-### 删除文本
+### 新增文本框
+
+```bash
+curl -X POST https://你的-worker域名/api/slots \
+  -H "Content-Type: application/json" \
+  -d '{"action":"create"}'
+```
+
+### 删除文本框
 
 ```bash
 curl -X DELETE https://你的-worker域名/api/slots \

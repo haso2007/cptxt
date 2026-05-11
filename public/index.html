@@ -9,49 +9,34 @@
   </head>
   <body>
     <main class="container">
-      <section class="slots" aria-label="文本框列表">
-        <article class="slot" data-slot="1">
-          <label for="slot-1">文本框 1</label>
-          <div class="textarea-wrap">
-            <textarea id="slot-1" rows="8" placeholder="输入或点击显示"></textarea>
-            <button type="button" class="delete-x" data-action="delete" data-slot="1" aria-label="删除文本框 1">×</button>
-          </div>
-          <div class="actions">
-            <button type="button" data-action="copy" data-slot="1">复制</button>
-            <button type="button" class="eye-toggle" data-action="toggle" data-slot="1" aria-label="隐藏文本框 1">
-              <svg class="eye-svg" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M2.25 12s3.5-6.25 9.75-6.25S21.75 12 21.75 12 18.25 18.25 12 18.25 2.25 12 2.25 12Z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-                <path class="eye-slash" d="M4.5 20 19.5 4"></path>
-              </svg>
-              <span class="sr-only">隐藏</span>
-            </button>
-          </div>
-          <p class="status" id="status-1" aria-live="polite"></p>
-        </article>
-
-        <article class="slot" data-slot="2">
-          <label for="slot-2">文本框 2</label>
-          <div class="textarea-wrap">
-            <textarea id="slot-2" rows="8" placeholder="输入或点击显示"></textarea>
-            <button type="button" class="delete-x" data-action="delete" data-slot="2" aria-label="删除文本框 2">×</button>
-          </div>
-          <div class="actions">
-            <button type="button" data-action="copy" data-slot="2">复制</button>
-            <button type="button" class="eye-toggle" data-action="toggle" data-slot="2" aria-label="隐藏文本框 2">
-              <svg class="eye-svg" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M2.25 12s3.5-6.25 9.75-6.25S21.75 12 21.75 12 18.25 18.25 12 18.25 2.25 12 2.25 12Z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-                <path class="eye-slash" d="M4.5 20 19.5 4"></path>
-              </svg>
-              <span class="sr-only">隐藏</span>
-            </button>
-          </div>
-          <p class="status" id="status-2" aria-live="polite"></p>
-        </article>
-      </section>
+      <section class="slots" id="slots" aria-label="文本框列表"></section>
+      <button type="button" class="add-slot" id="add-slot" aria-label="新增文本框">+</button>
     </main>
 
-    <script src="app.js?v=2" defer></script>
+    <template id="slot-template">
+      <article class="slot">
+        <div class="slot-header">
+          <input class="title-input" type="text" placeholder="" aria-label="文本框标题">
+          <button type="button" class="delete-box" data-action="delete" aria-label="删除文本框">×</button>
+        </div>
+        <div class="textarea-wrap">
+          <textarea rows="8" placeholder="输入或点击显示"></textarea>
+        </div>
+        <div class="actions">
+          <button type="button" data-action="copy">复制</button>
+          <button type="button" class="eye-toggle" data-action="toggle" aria-label="隐藏文本框">
+            <svg class="eye-svg" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2.25 12s3.5-6.25 9.75-6.25S21.75 12 21.75 12 18.25 18.25 12 18.25 2.25 12 2.25 12Z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+              <path class="eye-slash" d="M4.5 20 19.5 4"></path>
+            </svg>
+            <span class="sr-only">隐藏</span>
+          </button>
+        </div>
+        <p class="status" aria-live="polite"></p>
+      </article>
+    </template>
+
+    <script src="app.js?v=3" defer></script>
   </body>
 </html>

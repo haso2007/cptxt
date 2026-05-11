@@ -1,4 +1,5 @@
-const SLOT_IDS = ["1", "2"];
+const DEFAULT_SLOT_IDS = ["1", "2"];
+const INDEX_KEY = "slots:index";
 const TOKEN_TTL_SECONDS = 12 * 60 * 60;
 const MAX_TEXT_LENGTH = 50000;
 
@@ -39,19 +40,8 @@ async function handleApiRequest(request, env) {
 }
 
 async function getSlots(env) {
-  const slots = await Promise.all(
-    SLOT_IDS.map(async (id) => {
-      const value = await readSlot(env, id);
-      const isHidden = Boolean(value?.isHidden);
-      return {
-        id,
-        hasContent: Boolean(value?.text),
-        isHidden,
-        text: isHidden ? "" : (value?.text || ""),
-        updatedAt: value?.updatedAt || null,
-      };
-    }),
-  );
+  const ids = await readIndex(env);
+  const slots = await Promise.all(ids.map((id) => getSlotResponse(env, id)));
 
   return json({ slots });
 }
@@ -65,31 +55,28 @@ async function handlePost(request, env) {
     return json({ token: await createToken(env) });
   }
 
+  if (action === "create") {
+    return await createSlot(env);
+  }
+
   const slot = normalizeSlot(body.slot);
 
   if (action === "reveal") {
     const token = await authorize(request, env, body.password);
     const value = await readSlot(env, slot);
-    
     const text = value?.text || "";
     let isHidden = Boolean(value?.isHidden);
     let updatedAt = value?.updatedAt || null;
 
-    // 根据需求：一旦解锁，全局恢复为公开状态
     if (isHidden) {
       isHidden = false;
       updatedAt = new Date().toISOString();
-      if (text.length === 0) {
-        await env.COPYTXT_KV.delete(slotKey(slot));
-      } else {
-        await env.COPYTXT_KV.put(slotKey(slot), JSON.stringify({ text, isHidden, updatedAt }));
-      }
+      await writeSlot(env, slot, { title: value?.title || "", text, isHidden, updatedAt });
     }
 
-    return json({ slot, text, isHidden, updatedAt, token });
+    return json({ slot, title: value?.title || "", text, isHidden, updatedAt, token });
   }
 
-  // If the slot is currently hidden, require authorization to modify it
   const existingValue = await readSlot(env, slot);
   if (existingValue?.isHidden) {
     try {
@@ -102,24 +89,23 @@ async function handlePost(request, env) {
     }
   }
 
-  if (typeof body.text !== "string") {
-    return json({ error: "Text is required" }, 400);
-  }
+  return await saveSlot(env, slot, body, existingValue);
+}
 
-  if (body.text.length > MAX_TEXT_LENGTH) {
+async function saveSlot(env, slot, body, existingValue = null) {
+  const title = typeof body.title === "string" ? body.title : existingValue?.title || "";
+  const text = typeof body.text === "string" ? body.text : existingValue?.text || "";
+
+  if (text.length > MAX_TEXT_LENGTH) {
     return json({ error: `Text must be ${MAX_TEXT_LENGTH} characters or less` }, 413);
   }
 
   const updatedAt = new Date().toISOString();
-  const isHidden = Boolean(body.isHidden);
+  const isHidden = typeof body.isHidden === "boolean" ? body.isHidden : Boolean(existingValue?.isHidden);
 
-  if (body.text.length === 0) {
-    await env.COPYTXT_KV.delete(slotKey(slot));
-    return json({ slot, hasContent: false, isHidden: false, updatedAt: null });
-  }
-
-  await env.COPYTXT_KV.put(slotKey(slot), JSON.stringify({ text: body.text, isHidden, updatedAt }));
-  return json({ slot, hasContent: true, isHidden, updatedAt });
+  await ensureSlotInIndex(env, slot);
+  await writeSlot(env, slot, { title, text, isHidden, updatedAt });
+  return json({ slot, title, hasContent: Boolean(text), isHidden, updatedAt });
 }
 
 async function handleDelete(request, env) {
@@ -138,9 +124,35 @@ async function handleDelete(request, env) {
     }
   }
 
+  const ids = await readIndex(env);
   await env.COPYTXT_KV.delete(slotKey(slot));
+  await writeIndex(env, ids.filter((id) => id !== slot));
 
-  return json({ slot, hasContent: false, isHidden: false, updatedAt: null });
+  return json({ slot, deleted: true });
+}
+
+async function createSlot(env) {
+  const ids = await readIndex(env);
+  const id = crypto.randomUUID();
+  const updatedAt = new Date().toISOString();
+
+  await writeIndex(env, [...ids, id]);
+  await writeSlot(env, id, { title: "", text: "", isHidden: false, updatedAt });
+
+  return json({ id, slot: id, title: "", text: "", hasContent: false, isHidden: false, updatedAt });
+}
+
+async function getSlotResponse(env, id) {
+  const value = await readSlot(env, id);
+  const isHidden = Boolean(value?.isHidden);
+  return {
+    id,
+    title: value?.title || "",
+    hasContent: Boolean(value?.text),
+    isHidden,
+    text: isHidden ? "" : value?.text || "",
+    updatedAt: value?.updatedAt || null,
+  };
 }
 
 async function authorize(request, env, password) {
@@ -226,6 +238,32 @@ async function sign(secret, value) {
   return base64UrlEncodeBytes(new Uint8Array(signature));
 }
 
+async function readIndex(env) {
+  const raw = await env.COPYTXT_KV.get(INDEX_KEY);
+  if (!raw) return [...DEFAULT_SLOT_IDS];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.ids)) {
+      return parsed.ids.filter((id) => typeof id === "string" && id);
+    }
+  } catch {}
+
+  return [...DEFAULT_SLOT_IDS];
+}
+
+async function writeIndex(env, ids) {
+  await env.COPYTXT_KV.put(INDEX_KEY, JSON.stringify({ ids }));
+}
+
+async function ensureSlotInIndex(env, slot) {
+  const ids = await readIndex(env);
+
+  if (!ids.includes(slot)) {
+    await writeIndex(env, [...ids, slot]);
+  }
+}
+
 async function readSlot(env, slot) {
   const raw = await env.COPYTXT_KV.get(slotKey(slot));
   if (!raw) return null;
@@ -233,6 +271,7 @@ async function readSlot(env, slot) {
   try {
     const parsed = JSON.parse(raw);
     return {
+      title: typeof parsed.title === "string" ? parsed.title : "",
       text: typeof parsed.text === "string" ? parsed.text : "",
       updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
       isHidden: Boolean(parsed.isHidden),
@@ -240,6 +279,10 @@ async function readSlot(env, slot) {
   } catch {
     return null;
   }
+}
+
+async function writeSlot(env, slot, value) {
+  await env.COPYTXT_KV.put(slotKey(slot), JSON.stringify(value));
 }
 
 async function readBody(request) {
@@ -257,7 +300,7 @@ async function readBody(request) {
 function normalizeSlot(slot) {
   const normalized = String(slot || "");
 
-  if (!SLOT_IDS.includes(normalized)) {
+  if (!normalized || normalized.length > 80 || !/^[\w-]+$/.test(normalized)) {
     throw statusError("Invalid slot", 400);
   }
 
