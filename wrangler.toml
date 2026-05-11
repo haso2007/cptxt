@@ -8,5 +8,5 @@ binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "COPYTXT_KV"
-id = "replace-with-production-kv-namespace-id"
-preview_id = "replace-with-preview-kv-namespace-id"
+id = "ca2a2541db694d96b92a50178cce7e98"
+preview_id = "ca2a2541db694d96b92a50178cce7e98"
