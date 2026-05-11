@@ -43,7 +43,6 @@ h1 {
 }
 
 .slot {
-  position: relative;
   padding: 14px;
   border: 1px solid #e2e8f0;
   border-radius: 18px;
@@ -53,9 +52,13 @@ h1 {
 
 label {
   display: block;
-  margin: 0 46px 8px 0;
+  margin-bottom: 8px;
   font-weight: 700;
   font-size: 16px;
+}
+
+.textarea-wrap {
+  position: relative;
 }
 
 textarea {
@@ -65,7 +68,7 @@ textarea {
   resize: vertical;
   border: 1px solid #cbd5e1;
   border-radius: 14px;
-  padding: 12px;
+  padding: 12px 46px 12px 12px;
   font: inherit;
   font-size: 16px;
   line-height: 1.45;
@@ -81,7 +84,14 @@ textarea:focus {
 
 textarea[readonly] {
   background: #f8fafc;
-  color: #64748b;
+  color: #475569;
+}
+
+.slot.is-hidden textarea {
+  border-style: dashed;
+  color: #111827;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.12em;
 }
 
 .actions {
@@ -122,17 +132,24 @@ button:disabled {
 
 .delete-x {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   display: grid;
-  width: 38px;
-  min-height: 38px;
+  width: 32px;
+  min-height: 32px;
   place-items: center;
   border-radius: 999px;
-  background: #fee2e2;
-  color: #b91c1c;
-  font-size: 26px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #334155;
+  font-size: 24px;
+  font-weight: 500;
   line-height: 1;
+  z-index: 1;
+}
+
+.delete-x:active {
+  background: rgba(220, 38, 38, 0.16);
+  color: #b91c1c;
 }
 
 .eye-toggle {
@@ -140,41 +157,21 @@ button:disabled {
   place-items: center;
 }
 
-.eye-icon {
-  position: relative;
-  display: block;
-  width: 28px;
-  height: 18px;
-  border: 2px solid currentColor;
-  border-radius: 50% / 58%;
+.eye-svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
-.eye-icon::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  transform: translate(-50%, -50%);
-}
-
-.eye-icon::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: -4px;
+.eye-slash {
   display: none;
-  width: 36px;
-  height: 2px;
-  border-radius: 999px;
-  background: currentColor;
-  transform: rotate(-38deg);
 }
 
-.slot.is-hidden .eye-icon::after {
+.slot.is-hidden .eye-slash {
   display: block;
 }
 
@@ -183,10 +180,6 @@ button:disabled {
   margin: 8px 2px 0;
   color: #64748b;
   font-size: 13px;
-}
-
-.slot.is-hidden textarea {
-  border-style: dashed;
 }
 
 .sr-only {
@@ -208,10 +201,5 @@ button:disabled {
 
   .slot {
     padding: 18px;
-  }
-
-  .delete-x {
-    top: 14px;
-    right: 14px;
   }
 }

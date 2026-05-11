@@ -75,9 +75,13 @@ function updateSlotUi(slot) {
   const textarea = document.getElementById(`slot-${slot}`);
   card.classList.toggle("is-hidden", slotState.hidden);
   textarea.readOnly = slotState.hidden;
-  textarea.value = slotState.hidden ? "" : slotState.text;
-  textarea.placeholder = slotState.hidden ? "已隐藏，点击显示" : "输入或点击显示";
+  textarea.value = slotState.hidden ? maskText() : slotState.text;
+  textarea.placeholder = slotState.hidden ? "已隐藏，点击眼睛显示" : "输入或点击显示";
   setToggleUi(slot, slotState.hidden);
+}
+
+function maskText() {
+  return "••••••••••••";
 }
 
 function setToggleUi(slot, hidden) {
