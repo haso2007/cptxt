@@ -132,6 +132,8 @@ copytxt-storage
 Workers & Pages -> Pages -> Create a project
 ```
 
+必须选择 **Pages** 项目，不要选择 **Workers** 项目。
+
 如果你使用 GitHub/GitLab：
 
 1. 把当前目录提交到一个仓库。
@@ -140,10 +142,18 @@ Workers & Pages -> Pages -> Create a project
 
 ```text
 Framework preset: None
-Build command: 留空
+Build command: npm run build
 Build output directory: public
 Root directory: 如果仓库根目录就是 copytxt，则留空；否则填 copytxt 所在路径
 ```
+
+不要把构建命令设置为：
+
+```text
+npx wrangler deploy
+```
+
+`wrangler deploy` 是 Workers 部署命令，会要求 `main = "src/index.ts"` 或 `[assets]` 配置；这个项目使用的是 Cloudflare Pages + Pages Functions，所以应该通过 Pages 的 GitHub 集成部署。
 
 ### 3. 绑定 KV
 
@@ -452,6 +462,30 @@ Network -> /api/slots
 3. KV binding 名称是否正好是 `COPYTXT_KV`。
 4. 是否在 Production 环境配置了 `REVEAL_PASSWORD`。
 5. 是否在 Production 环境配置了 `SESSION_SECRET`。
+
+### 部署日志提示需要 `main = "src/index.ts"` 或 `[assets]`
+
+这说明当前项目被当作 Cloudflare Workers 部署了，或者构建命令错误地设置成了：
+
+```text
+npx wrangler deploy
+```
+
+处理方式：
+
+1. 回到 Cloudflare Dashboard。
+2. 创建或进入 **Workers & Pages -> Pages** 项目。
+3. 确认不是 Workers 项目。
+4. Settings / Build settings 中确认：
+
+```text
+Build command: npm run build
+Build output directory: public
+```
+
+5. 重新部署。
+
+不要按日志提示给本项目添加 `main = "src/index.ts"`，因为本项目使用的是 Pages Functions，不是单个 Worker 入口文件。
 
 ### API 返回 `KV binding is not configured`
 

@@ -1,0 +1,8 @@
+{
+  "name": "cptxt",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"console.log('Static Cloudflare Pages app: public/ is the build output')\""
+  }
+}
