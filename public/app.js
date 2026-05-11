@@ -247,19 +247,24 @@ async function toggleSlot(slot) {
   }
 
   updateSlotUi(slot);
-  setStatus(slot, "已隐藏");
+  setStatus(slot, "已加锁");
 }
 
 async function revealSlot(slot) {
   try {
-    await ensureUnlocked(slot);
+    const slotState = state.get(slot);
+
+    // Always require password when revealing locked content
+    if (slotState.isSecured) {
+      await ensureUnlocked(slot);
+    }
+
     const data = await requestJson("/api/slots", {
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify({ action: "reveal", slot }),
     });
 
-    const slotState = state.get(slot);
     slotState.text = data.text || "";
     slotState.hasContent = slotState.text.length > 0;
     slotState.updatedAt = data.updatedAt || null;
