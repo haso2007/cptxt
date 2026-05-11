@@ -1,6 +1,10 @@
-name = "copytxt"
+name = "cptxt"
+main = "src/index.js"
 compatibility_date = "2026-05-11"
-pages_build_output_dir = "public"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "COPYTXT_KV"

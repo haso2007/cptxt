@@ -2,9 +2,19 @@ const SLOT_IDS = ["1", "2"];
 const TOKEN_TTL_SECONDS = 12 * 60 * 60;
 const MAX_TEXT_LENGTH = 50000;
 
-export async function onRequest(context) {
-  const { request, env } = context;
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
 
+    if (url.pathname === "/api/slots") {
+      return handleApiRequest(request, env);
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+};
+
+async function handleApiRequest(request, env) {
   try {
     if (!env.COPYTXT_KV) {
       return json({ error: "KV binding is not configured" }, 500);
