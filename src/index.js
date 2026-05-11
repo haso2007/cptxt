@@ -42,9 +42,12 @@ async function getSlots(env) {
   const slots = await Promise.all(
     SLOT_IDS.map(async (id) => {
       const value = await readSlot(env, id);
+      const isHidden = Boolean(value?.isHidden);
       return {
         id,
         hasContent: Boolean(value?.text),
+        isHidden,
+        text: isHidden ? "" : (value?.text || ""),
         updatedAt: value?.updatedAt || null,
       };
     }),
@@ -67,10 +70,21 @@ async function handlePost(request, env) {
   if (action === "reveal") {
     const token = await authorize(request, env, body.password);
     const value = await readSlot(env, slot);
-    return json({ slot, text: value?.text || "", updatedAt: value?.updatedAt || null, token });
+    return json({ slot, text: value?.text || "", isHidden: Boolean(value?.isHidden), updatedAt: value?.updatedAt || null, token });
   }
 
-  await authorize(request, env, body.password);
+  // If the slot is currently hidden, require authorization to modify it
+  const existingValue = await readSlot(env, slot);
+  if (existingValue?.isHidden) {
+    try {
+      await authorize(request, env, body.password);
+    } catch (e) {
+      if (e.status === 401) {
+        throw statusError("修改隐藏文本需要密码解锁", 401);
+      }
+      throw e;
+    }
+  }
 
   if (typeof body.text !== "string") {
     return json({ error: "Text is required" }, 400);
@@ -81,24 +95,36 @@ async function handlePost(request, env) {
   }
 
   const updatedAt = new Date().toISOString();
+  const isHidden = Boolean(body.isHidden);
 
   if (body.text.length === 0) {
     await env.COPYTXT_KV.delete(slotKey(slot));
-    return json({ slot, hasContent: false, updatedAt: null });
+    return json({ slot, hasContent: false, isHidden: false, updatedAt: null });
   }
 
-  await env.COPYTXT_KV.put(slotKey(slot), JSON.stringify({ text: body.text, updatedAt }));
-  return json({ slot, hasContent: true, updatedAt });
+  await env.COPYTXT_KV.put(slotKey(slot), JSON.stringify({ text: body.text, isHidden, updatedAt }));
+  return json({ slot, hasContent: true, isHidden, updatedAt });
 }
 
 async function handleDelete(request, env) {
   const body = await readBody(request);
   const slot = normalizeSlot(body.slot);
 
-  await authorize(request, env, body.password);
+  const existingValue = await readSlot(env, slot);
+  if (existingValue?.isHidden) {
+    try {
+      await authorize(request, env, body.password);
+    } catch (e) {
+      if (e.status === 401) {
+        throw statusError("删除隐藏文本需要密码解锁", 401);
+      }
+      throw e;
+    }
+  }
+
   await env.COPYTXT_KV.delete(slotKey(slot));
 
-  return json({ slot, hasContent: false, updatedAt: null });
+  return json({ slot, hasContent: false, isHidden: false, updatedAt: null });
 }
 
 async function authorize(request, env, password) {
@@ -193,6 +219,7 @@ async function readSlot(env, slot) {
     return {
       text: typeof parsed.text === "string" ? parsed.text : "",
       updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
+      isHidden: Boolean(parsed.isHidden),
     };
   } catch {
     return null;

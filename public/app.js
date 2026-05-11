@@ -9,6 +9,7 @@ for (const slot of slots) {
     hasContent: false,
     updatedAt: null,
     saving: false,
+    isSecured: false, // Tracks if it's explicitly hidden on the server
   });
 }
 
@@ -60,8 +61,9 @@ async function loadSlots() {
 
       slotState.hasContent = Boolean(item.hasContent);
       slotState.updatedAt = item.updatedAt || null;
-      slotState.hidden = slotState.hasContent;
-      slotState.text = "";
+      slotState.hidden = Boolean(item.isHidden);
+      slotState.isSecured = Boolean(item.isHidden);
+      slotState.text = item.text || "";
       updateSlotUi(String(item.id));
     }
   } catch (error) {
@@ -108,6 +110,7 @@ function scheduleSave(slot) {
 async function saveSlot(slot) {
   const slotState = state.get(slot);
   const textarea = document.getElementById(`slot-${slot}`);
+  // If it's visibly hidden, send the cached text. Otherwise send what's in textarea.
   const text = slotState.hidden ? slotState.text : textarea.value;
 
   if (text.length > 50000) {
@@ -116,19 +119,37 @@ async function saveSlot(slot) {
   }
 
   try {
-    await ensureUnlocked(slot);
     slotState.saving = true;
     setStatus(slot, "保存中...");
 
-    const data = await requestJson("/api/slots", {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ slot, text }),
-    });
+    let data;
+    try {
+      data = await requestJson("/api/slots", {
+        method: "POST",
+        headers: authHeaders(),
+        // We use slotState.isSecured for whether it should be hidden on server.
+        // Wait, if we use isSecured, how do we toggle it?
+        // toggleSlot sets slotState.isSecured = true.
+        body: JSON.stringify({ slot, text, isHidden: slotState.isSecured }),
+      });
+    } catch (error) {
+      if (error.status === 401) {
+        await ensureUnlocked(slot);
+        data = await requestJson("/api/slots", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ slot, text, isHidden: slotState.isSecured }),
+        });
+      } else {
+        throw error;
+      }
+    }
 
     slotState.text = text;
     slotState.hasContent = text.length > 0;
     slotState.updatedAt = data.updatedAt || null;
+    slotState.hidden = Boolean(data.isHidden);
+    slotState.isSecured = Boolean(data.isHidden);
     setStatus(slot, "已保存");
     return true;
   } catch (error) {
@@ -145,16 +166,29 @@ async function deleteSlot(slot) {
   clearTimeout(saveTimers.get(slot));
 
   try {
-    await ensureUnlocked(slot);
-    await requestJson("/api/slots", {
-      method: "DELETE",
-      headers: authHeaders(),
-      body: JSON.stringify({ slot }),
-    });
+    try {
+      await requestJson("/api/slots", {
+        method: "DELETE",
+        headers: authHeaders(),
+        body: JSON.stringify({ slot }),
+      });
+    } catch (error) {
+      if (error.status === 401) {
+        await ensureUnlocked(slot);
+        await requestJson("/api/slots", {
+          method: "DELETE",
+          headers: authHeaders(),
+          body: JSON.stringify({ slot }),
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const slotState = state.get(slot);
     slotState.text = "";
     slotState.hidden = false;
+    slotState.isSecured = false;
     slotState.hasContent = false;
     slotState.updatedAt = null;
     updateSlotUi(slot);
@@ -200,13 +234,18 @@ async function toggleSlot(slot) {
 
   clearTimeout(saveTimers.get(slot));
   slotState.text = textarea.value;
+  slotState.hidden = true; // Visually hide
+  slotState.isSecured = true; // Mark as secured on server
 
   if (slotState.text) {
     const saved = await saveSlot(slot);
-    if (!saved) return;
+    if (!saved) {
+      slotState.hidden = false;
+      slotState.isSecured = false;
+      return;
+    }
   }
 
-  slotState.hidden = true;
   updateSlotUi(slot);
   setStatus(slot, "已隐藏");
 }
@@ -225,6 +264,7 @@ async function revealSlot(slot) {
     slotState.hasContent = slotState.text.length > 0;
     slotState.updatedAt = data.updatedAt || null;
     slotState.hidden = false;
+    slotState.isSecured = Boolean(data.isHidden);
     updateSlotUi(slot);
     setStatus(slot, slotState.hasContent ? "已显示" : "没有内容");
     document.getElementById(`slot-${slot}`).focus();
@@ -277,7 +317,9 @@ async function requestJson(url, options = {}) {
       sessionStorage.removeItem("copytxtToken");
     }
 
-    throw new Error(data.error || "请求失败");
+    const error = new Error(data.error || "请求失败");
+    error.status = response.status;
+    throw error;
   }
 
   return data;
