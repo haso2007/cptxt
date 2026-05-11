@@ -70,7 +70,23 @@ async function handlePost(request, env) {
   if (action === "reveal") {
     const token = await authorize(request, env, body.password);
     const value = await readSlot(env, slot);
-    return json({ slot, text: value?.text || "", isHidden: Boolean(value?.isHidden), updatedAt: value?.updatedAt || null, token });
+    
+    const text = value?.text || "";
+    let isHidden = Boolean(value?.isHidden);
+    let updatedAt = value?.updatedAt || null;
+
+    // 根据需求：一旦解锁，全局恢复为公开状态
+    if (isHidden) {
+      isHidden = false;
+      updatedAt = new Date().toISOString();
+      if (text.length === 0) {
+        await env.COPYTXT_KV.delete(slotKey(slot));
+      } else {
+        await env.COPYTXT_KV.put(slotKey(slot), JSON.stringify({ text, isHidden, updatedAt }));
+      }
+    }
+
+    return json({ slot, text, isHidden, updatedAt, token });
   }
 
   // If the slot is currently hidden, require authorization to modify it
