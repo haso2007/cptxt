@@ -18,23 +18,7 @@ body {
 .container {
   width: min(100%, 720px);
   margin: 0 auto;
-  padding: 18px 14px 32px;
-}
-
-.hero {
-  padding: 8px 2px 18px;
-}
-
-h1 {
-  margin: 0 0 8px;
-  font-size: clamp(28px, 8vw, 40px);
-  line-height: 1.1;
-}
-
-.hero p {
-  margin: 0;
-  color: #5d6678;
-  font-size: 15px;
+  padding: 10px 10px 24px;
 }
 
 .slots {
@@ -196,7 +180,7 @@ button:disabled {
 
 @media (min-width: 640px) {
   .container {
-    padding-top: 32px;
+    padding-top: 18px;
   }
 
   .slot {
