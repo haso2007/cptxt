@@ -36,9 +36,25 @@ body {
 
 .slot-header {
   display: grid;
-  grid-template-columns: 1fr 40px;
+  grid-template-columns: 24px 1fr 40px;
+  align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.drag-handle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  color: #94a3b8;
+  cursor: grab;
+  font-size: 18px;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .title-input {
@@ -182,6 +198,11 @@ button:disabled {
 
 .slot.is-hidden .eye-slash {
   display: block;
+}
+
+.sortable-ghost {
+  opacity: 0.4;
+  background-color: #f1f5f9;
 }
 
 .status {

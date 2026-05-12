@@ -59,6 +59,10 @@ async function handlePost(request, env) {
     return await createSlot(env);
   }
 
+  if (action === "reorder") {
+    return await handleReorder(env, body.ids);
+  }
+
   const slot = normalizeSlot(body.slot);
 
   if (action === "reveal") {
@@ -155,17 +159,27 @@ async function getSlotResponse(env, id) {
   };
 }
 
-async function authorize(request, env, password) {
-  const auth = request.headers.get("Authorization") || "";
-  const match = auth.match(/^Bearer\s+(.+)$/i);
-
-  if (match) {
-    await verifyToken(env, match[1]);
-    return match[1];
+  async function handleReorder(env, ids) {
+    if (!Array.isArray(ids)) {
+      throw statusError("Invalid ids array", 400);
+    }
+  
+    const currentIds = await readIndex(env);
+    
+    if (ids.length !== currentIds.length) {
+      throw statusError("Invalid array length", 400);
+    }
+  
+    const idSet = new Set(currentIds);
+    for (const id of ids) {
+      if (!idSet.has(id)) {
+        throw statusError("Invalid id", 400);
+      }
+    }
+  
+    await writeIndex(env, ids);
+    return json({ success: true, ids });
   }
-
-  if (password) {
-    await requirePassword(env, password);
     return createToken(env);
   }
 

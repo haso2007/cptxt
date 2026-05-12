@@ -15,6 +15,7 @@
     <template id="slot-template">
       <article class="slot">
         <div class="slot-header">
+          <div class="drag-handle" aria-label="拖拽调整位置">⋮⋮</div>
           <input class="title-input" type="text" placeholder="" aria-label="文本框标题">
           <button type="button" class="delete-box" data-action="delete" aria-label="删除文本框">×</button>
         </div>
@@ -37,6 +38,7 @@
       </article>
     </template>
 
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="app.js?v=3" defer></script>
   </body>
 </html>

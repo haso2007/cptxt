@@ -3,6 +3,8 @@ const saveTimers = new Map();
 const slotsElement = document.getElementById("slots");
 const template = document.getElementById("slot-template");
 
+let sortableInstance = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   loadSlots();
 });
@@ -16,9 +18,31 @@ async function loadSlots() {
     for (const item of data.slots || []) {
       addSlotToPage(item);
     }
+
+    initSortable();
   } catch (error) {
     slotsElement.textContent = error.message || "加载失败";
   }
+}
+
+function initSortable() {
+  if (sortableInstance) sortableInstance.destroy();
+  sortableInstance = new Sortable(slotsElement, {
+    handle: ".drag-handle",
+    animation: 200,
+    ghostClass: "sortable-ghost",
+    onEnd: async function () {
+      const newIds = Array.from(slotsElement.children).map(el => el.dataset.slot);
+      try {
+        await requestJson("/api/slots", {
+          method: "POST",
+          body: JSON.stringify({ action: "reorder", ids: newIds })
+        });
+      } catch (error) {
+        console.error("重排序保存失败", error);
+      }
+    }
+  });
 }
 
 function addSlotToPage(item) {
