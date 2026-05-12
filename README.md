@@ -140,7 +140,8 @@ Worker 需要两个变量：
 | `REVEAL_PASSWORD` | 点击显示、保存、删除时用于解锁的密码 |
 | `SESSION_SECRET` | 用于签发临时会话 token 的随机密钥 |
 
-推荐在 Cloudflare Dashboard 的 Worker 设置中添加 secret / variable。
+**重要提示**：推荐在 Cloudflare Dashboard 的 Worker 设置中添加（Settings -> Variables and Secrets）。添加时**必须点击“Encrypt”（加密）将其保存为 Secret**。
+*原因：Cloudflare 的机制规定，普通的明文环境变量（Variable）会以 `wrangler.toml` 为准，重新部署时如果 `wrangler.toml` 中没有写明文变量，面板里填写的明文变量就会被清空覆盖。而保存为“加密（Secret）”的环境变量则会跨部署永久保留。*
 
 也可以用 Wrangler 设置 secret：
 

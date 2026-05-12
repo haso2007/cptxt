@@ -10,7 +10,6 @@
   <body>
     <main class="container">
       <section class="slots" id="slots" aria-label="文本框列表"></section>
-      <button type="button" class="add-slot" id="add-slot" aria-label="新增文本框">+</button>
     </main>
 
     <template id="slot-template">
@@ -32,6 +31,7 @@
             </svg>
             <span class="sr-only">隐藏</span>
           </button>
+          <button type="button" class="eye-toggle" data-action="add" aria-label="新增文本框">添加</button>
         </div>
         <p class="status" aria-live="polite"></p>
       </article>

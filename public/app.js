@@ -2,10 +2,8 @@ const state = new Map();
 const saveTimers = new Map();
 const slotsElement = document.getElementById("slots");
 const template = document.getElementById("slot-template");
-const addButton = document.getElementById("add-slot");
 
 document.addEventListener("DOMContentLoaded", () => {
-  addButton.addEventListener("click", createSlot);
   loadSlots();
 });
 
@@ -81,6 +79,10 @@ function bindSlotEvents(node, slot) {
 
       if (action === "toggle") {
         await toggleSlot(slot);
+      }
+
+      if (action === "add") {
+        await createSlot(button);
       }
     });
   });
@@ -289,8 +291,8 @@ async function revealSlot(slot) {
   }
 }
 
-async function createSlot() {
-  addButton.disabled = true;
+async function createSlot(button) {
+  if (button) button.disabled = true;
 
   try {
     const data = await requestJson("/api/slots", {
@@ -303,7 +305,7 @@ async function createSlot() {
   } catch (error) {
     alert(error.message || "新增失败");
   } finally {
-    addButton.disabled = false;
+    if (button) button.disabled = false;
   }
 }
 
