@@ -180,13 +180,18 @@ async function getSlotResponse(env, id) {
     await writeIndex(env, ids);
     return json({ success: true, ids });
   }
-    return createToken(env);
+
+async function authorize(request, env, password) {
+  const auth = request.headers.get("Authorization") || "";
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+
+  if (match) {
+    await verifyToken(env, match[1]);
+    return match[1];
   }
 
-  throw statusError("Unauthorized", 401);
-}
-
-async function requirePassword(env, password) {
+  if (password) {
+    await requirePassword(env, password);
   if (!env.REVEAL_PASSWORD) {
     throw statusError("Password is not configured", 500);
   }
