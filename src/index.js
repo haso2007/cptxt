@@ -192,6 +192,13 @@ async function authorize(request, env, password) {
 
   if (password) {
     await requirePassword(env, password);
+    return createToken(env);
+  }
+
+  throw statusError("Unauthorized", 401);
+}
+
+async function requirePassword(env, password) {
   if (!env.REVEAL_PASSWORD) {
     throw statusError("Password is not configured", 500);
   }
