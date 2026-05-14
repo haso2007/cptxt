@@ -45,7 +45,7 @@ function initSortable() {
   });
 }
 
-function addSlotToPage(item) {
+function addSlotToPage(item, afterSlot = null) {
   const slot = String(item.id);
   const slotState = {
     title: item.title || "",
@@ -68,7 +68,14 @@ function addSlotToPage(item) {
   node.querySelector("button[data-action='toggle']").dataset.slot = slot;
 
   bindSlotEvents(node, slot);
-  slotsElement.appendChild(node);
+
+  const afterNode = afterSlot ? getSlotElement(afterSlot) : null;
+  if (afterNode) {
+    afterNode.after(node);
+  } else {
+    slotsElement.appendChild(node);
+  }
+
   updateSlotUi(slot);
 }
 
@@ -106,7 +113,7 @@ function bindSlotEvents(node, slot) {
       }
 
       if (action === "add") {
-        await createSlot(button);
+        await createSlot(slot, button);
       }
     });
   });
@@ -315,16 +322,16 @@ async function revealSlot(slot) {
   }
 }
 
-async function createSlot(button) {
+async function createSlot(afterSlot, button) {
   if (button) button.disabled = true;
 
   try {
     const data = await requestJson("/api/slots", {
       method: "POST",
-      body: JSON.stringify({ action: "create" }),
+      body: JSON.stringify({ action: "create", afterSlot }),
     });
 
-    addSlotToPage(data);
+    addSlotToPage(data, afterSlot);
     getSlotElement(data.id).querySelector(".title-input").focus();
   } catch (error) {
     alert(error.message || "新增失败");

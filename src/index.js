@@ -56,7 +56,7 @@ async function handlePost(request, env) {
   }
 
   if (action === "create") {
-    return await createSlot(env);
+    return await createSlot(env, body.afterSlot);
   }
 
   if (action === "reorder") {
@@ -135,12 +135,24 @@ async function handleDelete(request, env) {
   return json({ slot, deleted: true });
 }
 
-async function createSlot(env) {
+async function createSlot(env, afterSlot) {
   const ids = await readIndex(env);
   const id = crypto.randomUUID();
   const updatedAt = new Date().toISOString();
+  let nextIds = [...ids, id];
 
-  await writeIndex(env, [...ids, id]);
+  if (typeof afterSlot === "string" && afterSlot) {
+    const normalizedAfterSlot = normalizeSlot(afterSlot);
+    const afterIndex = ids.indexOf(normalizedAfterSlot);
+
+    if (afterIndex === -1) {
+      throw statusError("Invalid after slot", 400);
+    }
+
+    nextIds = [...ids.slice(0, afterIndex + 1), id, ...ids.slice(afterIndex + 1)];
+  }
+
+  await writeIndex(env, nextIds);
   await writeSlot(env, id, { title: "", text: "", isHidden: false, updatedAt });
 
   return json({ id, slot: id, title: "", text: "", hasContent: false, isHidden: false, updatedAt });
